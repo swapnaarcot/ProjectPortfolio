@@ -1,0 +1,137 @@
+---Checking the max of Tot_laid_off and Percentage laid_off-----
+
+select max(total_laid_off),max(percentage_laid_off) from layoffs_staging2;
+
+---Checking company with percentage laidoff 1% as per funds raising-----------
+
+select * from layoffs_staging2
+where percentage_laid_off =1
+order by funds_raised_millions desc;
+
+---Checking Total_laid_off company-wise------------
+select company,sum(total_laid_off)summ
+from layoffs_staging2 
+group by company
+order by 2 desc;
+
+------Checking the layoff duration------------
+select min(l_date) ,max(l_date) from layoffs_staging2;
+
+
+---Checking Total_laid_off company-wise------------
+
+select country,sum(total_laid_off)summ
+from layoffs_staging2 
+group by country
+order by 2 desc;
+
+---Checking Total_laid_off company-wise------------
+
+select l_date,sum(total_laid_off)summ
+from layoffs_staging2 
+group by l_date
+order by 1 desc;
+
+
+---Checking Total_laid_off year-wise------------
+
+select to_char(l_date,'yyyy'),sum(total_laid_off)summ
+from layoffs_staging2 
+group by to_char(l_date,'yyyy')
+order by 1 desc;
+
+
+---Checking Total_laid_off stage-wise------------
+
+select stage,sum(total_laid_off)summ
+from layoffs_staging2 
+group by stage
+order by 2 desc;
+
+
+
+---Checking Percentage_laid_off company-wise------------
+
+select company,sum(PERCENTAGE_laid_off)summ
+from layoffs_staging2 
+group by company
+order by 2 desc;
+
+---Checking AVG-Percentage_laid_off company-wise------------
+
+select company,avg(PERCENTAGE_laid_off)summ
+from layoffs_staging2 
+group by company
+order by 2 desc;
+
+---Checking laid-off year-month-wise------------------
+
+
+select to_char(l_date,'yyyy/mm')month,sum(total_laid_off) 
+from layoffs_staging2
+group by to_char(l_date,'yyyy/mm')
+order by 1;
+
+---Checking the cumulative(rolling) lay_off yearmonth-wise----
+
+with Rolling_total as
+(
+select to_char(l_date,'yyyy/mm')month,sum(total_laid_off) sum_off
+from layoffs_staging2
+group by to_char(l_date,'yyyy/mm')
+order by 1
+)
+select month,sum_off,sum(sum_off) over(order by month)roll_total
+from Rolling_total ;
+
+
+------Checking company,year-wise lay-offs--------------------
+
+select company,to_char(l_date,'yyyy'),sum(total_laid_off) from
+layoffs_staging2
+group by company,to_char(l_date,'yyyy')
+order by 1;
+
+----------checking the ranking by company,layoffs,year-----------
+with company_year(company,years,total_laid_off) as
+(
+select company,to_char(l_date,'yyyy'),nvl(sum(total_laid_off),0) from
+layoffs_staging2
+group by company,to_char(l_date,'yyyy') order by 1
+)
+select company,years,total_laid_off,dense_rank() over(partition by years order by total_laid_off desc)rank
+from company_year 
+where company is not null and years is not null;
+
+----checking the top 5 companies that laid-off year-wise--------
+
+with company_year(company,years,total_laid_off) as
+(
+select company,to_char(l_date,'yyyy'),nvl(sum(total_laid_off),0) from
+layoffs_staging2
+group by company,to_char(l_date,'yyyy') order by 1
+),Company_year_Rank as
+(
+select company,years,total_laid_off,dense_rank() over(partition by years order by total_laid_off desc)rank
+from company_year 
+where company is not null and years is not null
+)
+select * from Company_year_Rank
+where rank<=5;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,91 @@
+Data Cleaning:
+
+
+Pre-requisite-Take a new staging table which is a copy of the raw table.--layoffs_staging table
+
+Step 1: Removing duplicates:
+
+-----------Query to check duplicates using row numbers-------------------
+
+with dup_cte as
+(
+select company,location,industry,total_laid_off,percentage_laid_off,l_date,stage,country,funds_raised_millions,
+row_number() over(partition by company,location,industry,total_laid_off,
+percentage_laid_off,l_date,stage,country,funds_raised_millions order by company)rn
+from layoffs_staging)
+select * from dup_cte where rn>1;
+
+---Create a second staging table to remove duplicate rows and add data from above query(select)--
+
+insert into layoffs_staging2
+select company,location,industry,total_laid_off,percentage_laid_off,l_date,stage,country,funds_raised_millions,
+row_number() over(partition by company,location,industry,total_laid_off,
+percentage_laid_off,l_date,stage,country,funds_raised_millions order by company)rn
+from layoffs_staging;
+
+select * from layoffs_staging2 where rn>1;
+
+----Delete the rows having rownum>1-----------
+
+delete from layoffs_staging2 where rn>1;
+
+Step 2: Standardizing data:Finding issues in the data and fixing it
+
+--Removing the preceding and trailing spaces---
+update layoffs_staging2
+set company=trim(company);
+
+
+---Removing Industry names that have duplicate names for same industry------
+update layoffs_staging2
+set industry='Crypto' 
+where industry like 'Crypto%';
+
+-----Removing training . from country name------------
+
+ update layoffs_staging2
+set country=trim(trailing '.' from country)
+where country like 'United States%';
+
+-----Altering the Date column type from text to date---------
+alter table layoffs_staging2
+modify column l_date date;
+
+----Replacing the null values from columns--------------
+
+To check the null values in 'Industry' field ,merge using self-join(similar to update)  is used:
+
+select t1.company,t2.company,t1.industry,t2.industry from layoffs_staging2 t1
+join layoffs_staging2 t2
+on t1.company=t2.company
+where t1.industry is null
+and t2.industry is not null;
+
+
+merge into layoffs_staging2 t1
+using
+(select distinct company,industry from layoffs_staging2 where industry is not null)src
+on (t1.company=src.company)
+when matched then
+update
+set t1.industry=src.industry
+where t1.industry is null;
+
+
+------------Remove the records with null values for 2 or more related columns--------------------
+
+delete from layoffs_staging2 where
+total_laid_off is null and percentage_laid_off is null;
+
+
+-----Remove temporary working column from table------------------------------------
+
+alter table layoffs_staging2
+drop column rn;
+
+
+
+
+
+
+
